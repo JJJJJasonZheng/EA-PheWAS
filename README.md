@@ -10,7 +10,6 @@ The pipeline leverages a dual-branch architecture to maximize statistical power 
 1. **EmbedPheScan:** Computes cosine similarities between individual gene carrier embeddings and phenotype embeddings, generating fast permutation-based *z*-score p-values.
 2. **Conventional PheWAS:** Performs traditional covariate-adjusted logistic regression, dynamically falling back to Fisher's exact tests for phenotypes with ultra-low carrier counts.
 3. **ACAT Aggregation:** Merges the continuous approximation p-values from the embedding space with the categorical p-values from the regression model using the Aggregated Cauchy Association Test (ACAT) to create a single, unified ranking.
-4. **Evaluation:** Automatically benchmarks the aggregated results against Human Phenotype Ontology (HPO) ground truth using Precision@K metrics.
 
 ## Repository Structure
 
