@@ -4,7 +4,7 @@
 
 **EA-PheWAS** (Embedding-Augmented PheWAS) is a unified framework that integrates signals from regression-based PheWAS and embedding-similarity–based phenotype prioritization.
 
-## 🚀 Overview
+## Overview
 
 The pipeline leverages a dual-branch architecture to maximize statistical power and robustness:
 1. **EmbedPheScan:** Computes cosine similarities between individual gene carrier embeddings and phenotype embeddings, generating fast permutation-based *z*-score p-values.
@@ -12,7 +12,7 @@ The pipeline leverages a dual-branch architecture to maximize statistical power 
 3. **ACAT Aggregation:** Merges the continuous approximation p-values from the embedding space with the categorical p-values from the regression model using the Aggregated Cauchy Association Test (ACAT) to create a single, unified ranking.
 4. **Evaluation:** Automatically benchmarks the aggregated results against Human Phenotype Ontology (HPO) ground truth using Precision@K metrics.
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```text
 code/
@@ -21,4 +21,11 @@ code/
 ├── PheWAS.py                # Covariate-adjusted logistic regression & Fisher exact tests
 ├── ACAT_PheWAS.py           # Cauchy combination of p-values (ACAT)
 └── eval_hit_precision.py    # Precision@K evaluation against HPO databases
+ 
+embedding_model/
+└── embed_w2v.py             # Phenotype embedding generation based on Word2Vec model
+
+sample_data/
+├── cov_adjust_sample.txt    # Covariates sample data  
+└── hesin_sample.txt         # Phenotype list sample data
 ```
