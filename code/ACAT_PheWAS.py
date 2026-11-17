@@ -19,7 +19,7 @@ def get_disease_embed_fromind(icd_disease, ind_embed, hesin):
     return {eid: ind_embed[eid] for eid in eids if eid in ind_embed}
 
 def get_gene_carriers_id(carrier_file, hesin):
-    c_ids = pd.read_csv(carrier_file, sep=' ')['sample'].tolist()
+    c_ids = pd.read_csv(carrier_file, sep=r'\s+')['sample'].tolist()
     return list(set(c_ids) & set(hesin['eid']))
 
 def get_gene_carriers_embed(carrier_file, icd_embed, hesin):
@@ -34,17 +34,55 @@ def get_gene_carriers_embed_fromind(carrier_file, ind_embed, hesin):
 
 def get_group_embed(eid_group, hesin_group, embed_use):
     return {e: get_ind_embed(e, embed_use, hesin_group) for e in eid_group}
+
+def make_weighted_phecode_embeddings(icd2phecode, icd_embed, freq_df=None, weight_col="Freq", icd_col="diag_icd10", phe_col="PheCode", default_weight=1.0):
+    m = icd2phecode[[icd_col, phe_col]].dropna().drop_duplicates(subset=[icd_col, phe_col]).copy()
+    m[phe_col] = m[phe_col].astype(str).str.strip()
+    phe_embed = {}
+    for phe, grp in m.groupby(phe_col):
+        num, denom = None, 0.0
+        for code in grp[icd_col].astype(str):
+            if code not in icd_embed: continue
+            if freq_df is not None:
+                if code not in freq_df.index: continue
+                w = float(freq_df.loc[code, weight_col])
+            else:
+                w = float(default_weight)
+            if not np.isfinite(w) or w <= 0: continue
+            v = np.asarray(icd_embed[code], dtype=float)
+            if v.ndim != 1 or not np.isfinite(v).all(): continue
+            num = w * v if num is None else num + w * v
+            denom += w
+        if num is not None and denom > 0:
+            phe_embed[phe] = num / denom
+    return phe_embed
+
+def build_phecode_mapping(phecode_df, code_col="Phecode", desc_col="PhecodeString"):
+    sub = phecode_df[[code_col, desc_col]].dropna().copy()
+    sub[code_col] = sub[code_col].astype(str).str.strip()
+    sub = sub.drop_duplicates(subset=code_col)
+    return {r[code_col]: f"{r[code_col]}: {r[desc_col]}" for _, r in sub.iterrows()}
     
 def cosine_similarity(v1, v2):
     return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
 
 def _acat_two(p_embed, p_lr, w_embed=0.5, w_lr=0.5, p_min=1e-300, p_max=1-1e-16):
-    p1 = np.clip(np.asarray(p_embed, dtype=float), p_min, p_max)
-    p2 = np.clip(np.asarray(p_lr, dtype=float), p_min, p_max)
-    w = np.array([w_embed, w_lr], dtype=float)
+    w = np.asarray([w_embed, w_lr], dtype=np.longdouble)
     w /= np.sum(w)
-    T = w[0] * np.tan(np.pi * (0.5 - p1)) + w[1] * np.tan(np.pi * (0.5 - p2))
-    return np.clip(0.5 - np.arctan(T) / np.pi, 0.0, 1.0)
+    pi = np.arccos(np.longdouble(-1.0))
+    a1, a2 = np.broadcast_arrays(np.asarray(p_embed, dtype=float), np.asarray(p_lr, dtype=float))
+    terms = []
+    for arr in (a1, a2):
+        p = np.clip(arr, p_min, p_max).astype(np.longdouble)
+        t = np.empty_like(p)
+        lo, hi = p < 0.1, p > 0.9
+        mid = ~(lo | hi)
+        t[lo] = 1.0 / np.tan(pi * p[lo])
+        t[hi] = -1.0 / np.tan(pi * (1.0 - p[hi]))
+        t[mid] = np.tan(pi * (0.5 - p[mid]))
+        terms.append(t)
+    T = w[0] * terms[0] + w[1] * terms[1]
+    return np.asarray(np.clip(np.arctan2(np.ones_like(T), T) / pi, p_min, p_max), dtype=float)
 
 _code_re = re.compile(r"(\d+(?:\.\d+)?)")
 

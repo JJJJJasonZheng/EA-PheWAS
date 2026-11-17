@@ -1,9 +1,9 @@
 import pandas as pd
 from gensim.models import Word2Vec
 
-def train_icd_embeddings(df_diag, eid_col='eid', icd_col='diag_icd10', size=100, window=5, min_count=1, workers=4):
+def train_icd_embeddings(df_diag, eid_col='eid', icd_col='diag_icd10', size=100, window=5, min_count=1, workers=1, seed=42):
     sentences = df_diag.groupby(eid_col)[icd_col].apply(list).tolist()
-    model = Word2Vec(sentences, vector_size=size, window=window, min_count=min_count, workers=workers)
+    model = Word2Vec(sentences, vector_size=size, window=window, min_count=min_count, workers=workers, seed=seed)
     
     codes = model.wv.index_to_key
     emb_df = pd.DataFrame(model.wv[codes], index=codes)

@@ -30,8 +30,9 @@ def phewas_by_embedding_with_zpvalues(carrier_ids, embed_name, loaded_embeddings
     t_obs = carrier_vecs.mean(axis=0)
     n_carriers = len(carrier_vecs)
 
-    all_eids = list(ind_embed.keys())
-    all_vecs = np.array([v for v in ind_embed.values() if v is not None])
+    valid_ind = [(eid, v) for eid, v in ind_embed.items() if v is not None]
+    all_eids = [eid for eid, _ in valid_ind]
+    all_vecs = np.array([v for _, v in valid_ind])
     
     pool = all_vecs[~np.isin(all_eids, carrier_ids)] if sample_from == "noncarriers" else all_vecs
 
@@ -51,8 +52,8 @@ def phewas_by_embedding_with_zpvalues(carrier_ids, embed_name, loaded_embeddings
     null_sumsq = np.zeros(len(phen_mat))
 
     for _ in range(B):
-        idx = rng.integers(0, len(pool), size=n_carriers)
-        s_null = _cosine_sim_vector(pool[idx].mean(axis=0), phen_mat, phen_norm)
+        idx = rng.integers(0, len(pool), size=n_carriers)  # bootstrap with replacement from non-carriers
+        s_null = np.nan_to_num(_cosine_sim_vector(pool[idx].mean(axis=0), phen_mat, phen_norm), nan=0.0)
         if center_profile: s_null -= center(s_null)
         null_sum += s_null
         null_sumsq += s_null * s_null
