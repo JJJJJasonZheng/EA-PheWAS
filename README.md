@@ -24,13 +24,13 @@ code/
 embedding_model/
 └── embed_w2v.py             # Phenotype embedding generation based on Word2Vec model
 
-sample_data/                 # Purely synthetic example files (zero UK Biobank records)
-├── cov_adjust_sample.txt    # Synthetic covariates (eid, age_recruit, sex, PC1..PC10)
-├── hesin_sample.txt         # Synthetic diagnosis records (eid, diag_icd10)
-├── carrier_sample.txt       # Synthetic gene carrier IDs (sample)
-├── icd2phecode_sample.csv   # ICD-10 to PheCode mapping (diag_icd10, PheCode)
-├── phecode_map_sample.csv   # PheCode descriptions (Phecode, PhecodeString)
-└── hpo_phecode_sample.tsv   # HPO-to-PheCode reference mapping
+sample_data/
+├── cov_adjust_sample.txt        # Synthetic covariates (eid, age_recruit, sex, PC1..PC10)
+├── hesin_sample.txt             # Synthetic diagnosis records (eid, diag_icd10)
+├── carrier_sample.txt           # Synthetic gene carrier IDs (sample)
+├── icd2phecode_des.csv          # Full public ICD-10 to PheCode 1.2 mapping
+├── Phecode_map12_filtered.csv   # Full public PheCode 1.2 description table
+└── hpo-phecode1.2_links.tsv     # Full public HPO-to-PheCode 1.2 reference links
 ```
 
 ## Quickstart

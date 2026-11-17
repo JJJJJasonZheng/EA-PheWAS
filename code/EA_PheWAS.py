@@ -29,9 +29,9 @@ parser.add_argument("--out_dir", type=str, default="./results")
 parser.add_argument("--hesin", type=str, default=os.path.join(ROOT_DIR, "sample_data/hesin_sample.txt"))
 parser.add_argument("--cov", type=str, default=os.path.join(ROOT_DIR, "sample_data/cov_adjust_sample.txt"))
 parser.add_argument("--carrier_file", type=str, default=os.path.join(ROOT_DIR, "sample_data/carrier_sample.txt"))
-parser.add_argument("--icd2phecode", type=str, default=os.path.join(ROOT_DIR, "sample_data/icd2phecode_sample.csv"))
-parser.add_argument("--phecode_map", type=str, default=os.path.join(ROOT_DIR, "sample_data/phecode_map_sample.csv"))
-parser.add_argument("--hpo_map", type=str, default=os.path.join(ROOT_DIR, "sample_data/hpo_phecode_sample.tsv"))
+parser.add_argument("--icd2phecode", type=str, default=os.path.join(ROOT_DIR, "sample_data/icd2phecode_des.csv"))
+parser.add_argument("--phecode_map", type=str, default=os.path.join(ROOT_DIR, "sample_data/Phecode_map12_filtered.csv"))
+parser.add_argument("--hpo_map", type=str, default=os.path.join(ROOT_DIR, "sample_data/hpo-phecode1.2_links.tsv"))
 parser.add_argument("--icd_embed", type=str, default=None, help="Optional precomputed ICD embedding TSV/PKL")
 parser.add_argument("--ind_embed", type=str, default=None, help="Optional precomputed individual embedding PKL")
 parser.add_argument("--icd_freq", type=str, default=None, help="Optional ICD frequency CSV (weight_col='Freq')")
@@ -47,10 +47,10 @@ embed_name = args.embed_name
 # Load covariates, ICD-10 diagnosis records, and phecode mappings
 cov_adjust = pd.read_csv(args.cov, sep="\t")
 hesin_diag = pd.read_csv(args.hesin, sep="\t")
-icd2phecode = pd.read_csv(args.icd2phecode, dtype={"PheCode": str})
-phecode_mapping = build_phecode_mapping(pd.read_csv(args.phecode_map, dtype={"Phecode": str}))
+icd2phecode = pd.read_csv(args.icd2phecode)
+phecode_mapping = build_phecode_mapping(pd.read_csv(args.phecode_map))
 
-icd_to_phecode = icd2phecode.dropna(subset=["diag_icd10", "PheCode"]).drop_duplicates("diag_icd10").set_index("diag_icd10")["PheCode"].to_dict()
+icd_to_phecode = icd2phecode.dropna(subset=["diag_icd10", "PheCode"]).drop_duplicates("diag_icd10").assign(PheCode=lambda x: x["PheCode"].astype(str).str.strip()).set_index("diag_icd10")["PheCode"].to_dict()
 hesin_use = hesin_diag.assign(phecode=hesin_diag["diag_icd10"].map(icd_to_phecode))[["eid", "phecode"]].dropna().drop_duplicates()
 eid_use_phewas = hesin_use["eid"].drop_duplicates().tolist()
 
@@ -101,7 +101,7 @@ try:
 except KeyError:
     pass
 
-hpo_map = pd.read_table(args.hpo_map, dtype={"phecode1.2_code": str})
+hpo_map = pd.read_table(args.hpo_map)
 gt_phecodes = hpo_map[hpo_map['hpo_code'].isin(hpo_ids)][['phecode1.2_code', 'phecode1.2_label', 'phecode1.2_category', 'hpo_code', 'hpo_label']].drop_duplicates()
 
 with open(os.path.join(gene_dir, f"{GENE}_hpo.pkl"), "wb") as f:
