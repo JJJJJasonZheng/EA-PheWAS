@@ -20,7 +20,7 @@ def _bh_fdr(pvals):
     out[order] = np.clip(q, 0.0, 1.0)
     return out
 
-def phewas_by_embedding_with_zpvalues(carrier_ids, embed_name, loaded_embeddings, icd_parent_embeddings, icd_mapping, B=10000, seed=0, sample_from="noncarriers", center_profile=True, center_func="mean", two_sided=False, min_sd=1e-8):
+def phewas_by_embedding_with_zpvalues(carrier_ids, embed_name, loaded_embeddings, icd_parent_embeddings, icd_mapping, B=10000, seed=0, sample_from="all", replace=False, center_profile=True, center_func="mean", two_sided=False, min_sd=1e-8):
     ind_embed = loaded_embeddings[f"ind_{embed_name}"]
     icd_embed = icd_parent_embeddings[f"icd_{embed_name}"]
     
@@ -34,7 +34,11 @@ def phewas_by_embedding_with_zpvalues(carrier_ids, embed_name, loaded_embeddings
     all_eids = [eid for eid, _ in valid_ind]
     all_vecs = np.array([v for _, v in valid_ind])
     
+    if sample_from not in ("all", "noncarriers"):
+        raise ValueError("sample_from must be 'all' or 'noncarriers'.")
     pool = all_vecs[~np.isin(all_eids, carrier_ids)] if sample_from == "noncarriers" else all_vecs
+    if len(pool) == 0 or (not replace and len(pool) < n_carriers):
+        raise ValueError("Resampling pool smaller than #carriers.")
 
     phen_names = [icd_mapping.get(k, k) for k, v in icd_embed.items() if v is not None]
     phen_mat = np.array([v for v in icd_embed.values() if v is not None])
@@ -52,7 +56,7 @@ def phewas_by_embedding_with_zpvalues(carrier_ids, embed_name, loaded_embeddings
     null_sumsq = np.zeros(len(phen_mat))
 
     for _ in range(B):
-        idx = rng.integers(0, len(pool), size=n_carriers)  # bootstrap with replacement from non-carriers
+        idx = rng.integers(0, len(pool), size=n_carriers) if replace else rng.choice(len(pool), size=n_carriers, replace=False)
         s_null = np.nan_to_num(_cosine_sim_vector(pool[idx].mean(axis=0), phen_mat, phen_norm), nan=0.0)
         if center_profile: s_null -= center(s_null)
         null_sum += s_null

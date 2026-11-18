@@ -39,6 +39,8 @@ parser.add_argument("--embed_name", type=str, default="w2vicd500k_embed")
 parser.add_argument("--min_cases", type=int, default=5)
 parser.add_argument("--B", type=int, default=10000)
 parser.add_argument("--seed", type=int, default=0)
+parser.add_argument("--sample_from", choices=["all", "noncarriers"], default="all")
+parser.add_argument("--with_replacement", action="store_true", help="Sample pseudo-carriers with replacement (default: without replacement)")
 args = parser.parse_args()
 
 GENE = args.gene
@@ -76,7 +78,10 @@ freq_df = pd.read_csv(args.icd_freq, index_col=0) if args.icd_freq else None
 phecode_embeddings = {f"icd_{embed_name}": make_weighted_phecode_embeddings(icd2phecode, icd_embed, freq_df=freq_df)}
 
 c_embed = get_gene_carriers_id(args.carrier_file, hesin_use)
-embed_res = phewas_by_embedding_with_zpvalues(c_embed, embed_name, loaded_embeddings, phecode_embeddings, phecode_mapping, B=args.B, seed=args.seed)
+embed_res = phewas_by_embedding_with_zpvalues(
+    c_embed, embed_name, loaded_embeddings, phecode_embeddings, phecode_mapping,
+    B=args.B, seed=args.seed, sample_from=args.sample_from, replace=args.with_replacement,
+)
 
 c_phewas = get_gene_carriers_id(args.carrier_file, hesin_use)
 phewas_res = run_carrierlist_phewas_hybrid_cov(c_phewas, hesin_use, 'phecode', eid_use_phewas, cov_adjust, phecode_mapping, min_cases=args.min_cases)
