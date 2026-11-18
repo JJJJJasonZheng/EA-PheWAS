@@ -2,48 +2,44 @@
 
 [![DOI](https://img.shields.io/badge/DOI-10.64898%2F2026.04.21.720031-blue.svg)](https://doi.org/10.64898/2026.04.21.720031)
 
-**EA-PheWAS** (Embedding-Augmented PheWAS) is a unified framework that integrates signals from regression-based PheWAS and embedding-similarity–based phenotype prioritization.
+**EA-PheWAS** (Embedding-Augmented PheWAS) combines conventional regression-based PheWAS with phenotype-embedding similarity scans for gene-level phenotype prioritization.
 
 ## Overview
 
-The pipeline leverages a dual-branch architecture to maximize statistical power and robustness:
-1. **EmbedPheScan:** Computes mean-centered cosine similarities between gene-carrier embeddings and phecode embeddings, calibrating normal-approximation *z*-score p-values via non-carrier bootstrap resampling with replacement (`sample_from="noncarriers"`, `rng.integers`).
-2. **Conventional PheWAS:** Performs Firth bias-reduced logistic regression (1-df penalized likelihood-ratio test) adjusted for age, sex, and genetic principal components (`PC1`–`PC10`), retaining two-sided Fisher's exact test only as an exception fallback.
-3. **ACAT Aggregation:** Combines aligned p-values from EmbedPheScan and conventional PheWAS using numerically stable equal-weight Aggregated Cauchy Association Test (ACAT) to produce a unified ranking.
+1. **EmbedPheScan:** Computes mean-centered cosine similarities between gene carrier embeddings and phecode embeddings, using non-carrier bootstrap resampling (`sample_from="noncarriers"`) to calculate *z*-score p-values.
+2. **Conventional PheWAS:** Fits Firth penalized logistic regression adjusted for age, sex, and `PC1`–`PC10`, with Fisher's exact test as a fallback when needed.
+3. **ACAT Aggregation:** Combines p-values from EmbedPheScan and conventional PheWAS with the Aggregated Cauchy Association Test (ACAT).
 
 ## Repository Structure
 
 ```text
 code/
-├── EA_PheWAS.py             # Main execution wrapper for the pipeline
-├── EmbedPheScan.py          # Embedding-based p-values generation (non-carrier bootstrap)
-├── PheWAS.py                # Covariate-adjusted Firth logistic regression & Fisher fallback
-├── ACAT_PheWAS.py           # Embedding/phecode helpers & numerically stable ACAT combination
-└── eval_hit_precision.py    # Precision@K evaluation against HPO databases
+├── EA_PheWAS.py             # Main script for running a single-gene scan
+├── EmbedPheScan.py          # Embedding-based scan
+├── PheWAS.py                # Firth logistic regression & Fisher exact test
+├── ACAT_PheWAS.py           # Embedding/phecode helpers and ACAT combination
+└── eval_hit_precision.py    # Precision@K evaluation with HPO annotations
 
 embedding_model/
-└── embed_w2v.py             # Phenotype embedding generation based on Word2Vec model
+└── embed_w2v.py             # Word2Vec training for ICD-10 embeddings
 
 sample_data/
-├── cov_adjust_sample.txt        # Synthetic covariates (eid, age_recruit, sex, PC1..PC10)
-├── hesin_sample.txt             # Synthetic diagnosis records (eid, diag_icd10)
-├── carrier_sample.txt           # Synthetic gene carrier IDs (sample)
-├── icd2phecode_des.csv          # Full public ICD-10 to PheCode 1.2 mapping
-├── Phecode_map12_filtered.csv   # Full public PheCode 1.2 description table
-└── hpo-phecode1.2_links.tsv     # Full public HPO-to-PheCode 1.2 reference links
+├── cov_adjust_sample.txt        # Example covariate table
+├── hesin_sample.txt             # Example ICD-10 diagnosis table
+├── carrier_sample.txt           # Example carrier ID list
+├── icd2phecode_des.csv          # ICD-10 to PheCode 1.2 mapping
+├── Phecode_map12_filtered.csv   # PheCode 1.2 descriptions
+└── hpo-phecode1.2_links.tsv     # HPO to PheCode 1.2 mapping
 ```
 
-## Quickstart
+## Usage
 
-Install dependencies (`numpy`, `pandas`, `scipy`, `statsmodels`, `gensim`, `pyhpo`) and run end-to-end on the bundled synthetic `sample_data/` (no external embeddings or UK Biobank files required; `embed_w2v.py` trains ICD-10 embeddings automatically when `--icd_embed` is omitted):
+Dependencies: `numpy`, `pandas`, `scipy`, `statsmodels`, `gensim`, `pyhpo`.
+
+Run on the example data:
 
 ```bash
 python code/EA_PheWAS.py --gene PKD1 --out_dir ./results
 ```
 
-### Helper Variables & Functions
-
-All intermediate dictionary objects used in `code/EA_PheWAS.py` are constructed using helpers in `code/ACAT_PheWAS.py` and `embedding_model/embed_w2v.py`:
-- **`loaded_embeddings`** (`{"ind_<embed_name>": {eid: vector}}`): built via `get_group_embed(eid_use_phewas, hesin_diag, icd_embed)` or loaded via `--ind_embed`.
-- **`phecode_embeddings`** (`{"icd_<embed_name>": {phecode: vector}}`): built via `make_weighted_phecode_embeddings(icd2phecode, icd_embed, freq_df=...)`.
-- **`phecode_mapping`** (`{phecode: "<phecode>: <PhecodeString>"}`): built via `build_phecode_mapping(phecode_df)`.
+If `--icd_embed` and `--ind_embed` are not provided, `EA_PheWAS.py` trains ICD-10 embeddings from `--hesin` via `embed_w2v.py` and builds `loaded_embeddings`, `phecode_embeddings`, and `phecode_mapping` using the helpers in `code/ACAT_PheWAS.py`. To run on custom data, pass `--hesin`, `--cov`, `--carrier_file`, and optional `--icd_embed` / `--ind_embed` / `--icd_freq` paths (see `python code/EA_PheWAS.py -h`).
