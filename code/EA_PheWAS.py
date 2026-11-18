@@ -32,21 +32,18 @@ parser.add_argument("--carrier_file", type=str, default=os.path.join(ROOT_DIR, "
 parser.add_argument("--icd2phecode", type=str, default=os.path.join(ROOT_DIR, "sample_data/icd2phecode_des.csv"))
 parser.add_argument("--phecode_map", type=str, default=os.path.join(ROOT_DIR, "sample_data/Phecode_map12_filtered.csv"))
 parser.add_argument("--hpo_map", type=str, default=os.path.join(ROOT_DIR, "sample_data/hpo-phecode1.2_links.tsv"))
-parser.add_argument("--icd_embed", type=str, default=None, help="Optional precomputed ICD embedding TSV/PKL")
-parser.add_argument("--ind_embed", type=str, default=None, help="Optional precomputed individual embedding PKL")
-parser.add_argument("--icd_freq", type=str, default=None, help="Optional ICD frequency CSV (weight_col='Freq')")
+parser.add_argument("--icd_embed", type=str, default=None)
+parser.add_argument("--ind_embed", type=str, default=None)
+parser.add_argument("--icd_freq", type=str, default=None)
 parser.add_argument("--embed_name", type=str, default="w2vicd500k_embed")
 parser.add_argument("--min_cases", type=int, default=5)
 parser.add_argument("--B", type=int, default=10000)
 parser.add_argument("--seed", type=int, default=0)
-parser.add_argument("--sample_from", choices=["all", "noncarriers"], default="all")
-parser.add_argument("--with_replacement", action="store_true", help="Sample pseudo-carriers with replacement (default: without replacement)")
 args = parser.parse_args()
 
 GENE = args.gene
 embed_name = args.embed_name
 
-# Load covariates, ICD-10 diagnosis records, and phecode mappings
 cov_adjust = pd.read_csv(args.cov, sep="\t")
 hesin_diag = pd.read_csv(args.hesin, sep="\t")
 icd2phecode = pd.read_csv(args.icd2phecode)
@@ -56,7 +53,6 @@ icd_to_phecode = icd2phecode.dropna(subset=["diag_icd10", "PheCode"]).drop_dupli
 hesin_use = hesin_diag.assign(phecode=hesin_diag["diag_icd10"].map(icd_to_phecode))[["eid", "phecode"]].dropna().drop_duplicates()
 eid_use_phewas = hesin_use["eid"].drop_duplicates().tolist()
 
-# Build or load ICD-level, individual-level (loaded_embeddings), and phecode-level (phecode_embeddings) dictionaries
 if args.icd_embed and args.icd_embed.endswith((".pkl", ".pickle")):
     with open(args.icd_embed, "rb") as f:
         icd_embed = pickle.load(f)
@@ -78,10 +74,7 @@ freq_df = pd.read_csv(args.icd_freq, index_col=0) if args.icd_freq else None
 phecode_embeddings = {f"icd_{embed_name}": make_weighted_phecode_embeddings(icd2phecode, icd_embed, freq_df=freq_df)}
 
 c_embed = get_gene_carriers_id(args.carrier_file, hesin_use)
-embed_res = phewas_by_embedding_with_zpvalues(
-    c_embed, embed_name, loaded_embeddings, phecode_embeddings, phecode_mapping,
-    B=args.B, seed=args.seed, sample_from=args.sample_from, replace=args.with_replacement,
-)
+embed_res = phewas_by_embedding_with_zpvalues(c_embed, embed_name, loaded_embeddings, phecode_embeddings, phecode_mapping, B=args.B, seed=args.seed)
 
 c_phewas = get_gene_carriers_id(args.carrier_file, hesin_use)
 phewas_res = run_carrierlist_phewas_hybrid_cov(c_phewas, hesin_use, 'phecode', eid_use_phewas, cov_adjust, phecode_mapping, min_cases=args.min_cases)
